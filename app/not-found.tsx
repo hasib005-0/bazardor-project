@@ -1,0 +1,2 @@
+import Link from "next/link";
+export default function NotFound(){return <div className="mx-auto flex min-h-[55vh] max-w-xl flex-col items-center justify-center px-4 text-center"><p className="text-7xl">🧺</p><p className="mt-5 text-sm font-bold text-emerald-700">404 — পৃষ্ঠা খুঁজে পাওয়া যায়নি</p><h1 className="mt-2 text-3xl font-black">এই ঠিকানায় কিছু নেই</h1><p className="mt-3 text-slate-500">লিংকটি ভুল হতে পারে অথবা পৃষ্ঠাটি সরিয়ে নেওয়া হয়েছে।</p><Link className="btn-primary mt-6" href="/">হোম পেজে ফিরে যান</Link></div>}
