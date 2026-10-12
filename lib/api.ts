@@ -54,7 +54,13 @@ const productEmojis: Record<string, string> = {
   dim: "🥚",
   mach: "🐟",
   ilish: "🐟",
+  "ilish-mach": "🐟",
   "katla-mach": "🐟",
+  "koi-mach": "🐟",
+  "rui-mach": "🐟",
+  "chingri-mach": "🦐",
+  "telapia": "🐟",
+  "tilapia": "🐟",
   mangsho: "🍗",
   murgi: "🍗",
   tel: "🫙",
@@ -62,6 +68,15 @@ const productEmojis: Record<string, string> = {
   dal: "🫘",
   sobji: "🥬",
   mosla: "🌶️",
+  dudh: "🥛",
+  "dudh-packet": "🥛",
+  milk: "🥛",
+  doi: "🥣",
+  doi-misti: "🥣",
+  yogurt: "🥣",
+  "dim-dudh": "🥛",
+  mayon: "🥫",
+  mayonnaise: "🥫",
 };
 
 const categoryEmojis: Record<string, string> = {
@@ -78,12 +93,13 @@ const categoryEmojis: Record<string, string> = {
   meat: "🍗",
   dim: "🥚",
   egg: "🥚",
+  "dim-dudh": "🥛",
   mosla: "🌶️",
   spice: "🌶️",
 };
 
 function pick(
-  obj: any,
+  obj: Record<string, any> | null | undefined,
   keys: string[],
   fallback: any = undefined
 ): any {
@@ -96,7 +112,7 @@ function pick(
   return fallback;
 }
 
-function numberValue(value: any): number {
+function numberValue(value: unknown): number {
   if (typeof value === "number") {
     return Number.isFinite(value) ? value : 0;
   }
@@ -108,7 +124,6 @@ function numberValue(value: any): number {
     .replace(/[^0-9.-]/g, "");
 
   const result = Number(normalized);
-
   return Number.isFinite(result) ? result : 0;
 }
 
@@ -122,38 +137,84 @@ function unwrap(json: any): any {
   );
 }
 
-function getProductEmoji(product: any, category: string): string {
-  const supplied = pick(product, ["emoji", "icon"], "");
+function getProductEmoji(
+  product: Record<string, any>,
+  category: string
+): string {
+  const slug = String(
+    pick(product, ["slug"], "")
+  ).toLowerCase();
 
-  if (typeof supplied === "string" && supplied.trim()) {
-    return supplied;
-  }
+  const name = String(
+    pick(
+      product,
+      ["nameBn", "name", "title", "productName", "product_name"],
+      ""
+    )
+  ).toLowerCase();
 
-  const slug = String(pick(product, ["slug"], "")).toLowerCase();
-  const name = String(pick(product, ["nameBn", "name", "title"], ""));
-
+  // Match the actual product before using a generic API icon.
   if (productEmojis[slug]) {
     return productEmojis[slug];
   }
 
-  if (/চাল/.test(name)) return "🍚";
-  if (/ডাল|ছোলা/.test(name)) return "🫘";
-  if (/পেঁয়াজ|পেঁয়াজ/.test(name)) return "🧅";
-  if (/আলু/.test(name)) return "🥔";
-  if (/রসুন/.test(name)) return "🧄";
-  if (/আদা/.test(name)) return "🫚";
-  if (/মরিচ/.test(name)) return "🌶️";
-  if (/বেগুন/.test(name)) return "🍆";
-  if (/ঢেঁড়স|ঢেঁড়স/.test(name)) return "🥒";
-  if (/টমেটো/.test(name)) return "🍅";
-  if (/ডিম/.test(name)) return "🥚";
-  if (/মাছ|ইলিশ|কাতলা/.test(name)) return "🐟";
-  if (/মুরগি|মাংস/.test(name)) return "🍗";
-  if (/তেল/.test(name)) return "🫙";
+  // More specific names must come before general names.
+  if (/চিংড়ি|চিংড়ি|shrimp|prawn/.test(name)) return "🦐";
+
+  if (/দুধ|milk/.test(name)) return "🥛";
+  if (/দই|doi|yogurt|yoghurt/.test(name)) return "🥣";
+  if (/মাখন|butter/.test(name)) return "🧈";
+  if (/পনির|cheese/.test(name)) return "🧀";
+  if (/মেয়োনিজ|মেয়োনিজ|mayonnaise|mayo/.test(name)) {
+    return "🥫";
+  }
+
+  if (/ডিম|egg/.test(name)) return "🥚";
+
+  if (/চাল|rice/.test(name)) return "🍚";
+  if (/ডাল|ছোলা|lentil|chickpea/.test(name)) return "🫘";
+  if (/পেঁয়াজ|পেঁয়াজ|পিয়াজ|onion/.test(name)) return "🧅";
+  if (/আলু|potato/.test(name)) return "🥔";
+  if (/রসুন|garlic/.test(name)) return "🧄";
+  if (/আদা|ginger/.test(name)) return "🫚";
+  if (/মরিচ|chili|chilli/.test(name)) return "🌶️";
+  if (/বেগুন|eggplant/.test(name)) return "🍆";
+  if (/ঢেঁড়স|ঢেঁড়স|okra/.test(name)) return "🥒";
+  if (/টমেটো|tomato/.test(name)) return "🍅";
+  if (/শসা|cucumber/.test(name)) return "🥒";
+  if (/গাজর|carrot/.test(name)) return "🥕";
+  if (/বাঁধাকপি|বাধাকপি|cabbage/.test(name)) return "🥬";
+  if (/ফুলকপি|cauliflower/.test(name)) return "🥦";
+  if (/লাউ|কুমড়া|কুমড়া|pumpkin/.test(name)) return "🎃";
+
+  if (/মাছ|ইলিশ|কাতলা|কাতল|রুই|তেলাপিয়া|তেলাপিয়া|fish/.test(name)) {
+    return "🐟";
+  }
+
+  if (/মুরগি|chicken/.test(name)) return "🍗";
+  if (/গরুর মাংস|খাসির মাংস|beef|mutton/.test(name)) {
+    return "🥩";
+  }
+  if (/মাংস|meat/.test(name)) return "🍖";
+
+  if (/তেল|oil/.test(name)) return "🫙";
+  if (/চিনি|sugar/.test(name)) return "🍬";
+  if (/লবণ|salt/.test(name)) return "🧂";
+  if (/হলুদ|turmeric/.test(name)) return "🫚";
+
+  const supplied = pick(product, ["emoji", "icon"], "");
+
+  if (
+    typeof supplied === "string" &&
+    supplied.trim() &&
+    !["🛒", "🛍️", "📦", "❓"].includes(supplied.trim())
+  ) {
+    return supplied;
+  }
 
   const key = category.toLowerCase().replace(/[-_\s]/g, "");
 
-  return categoryEmojis[key] ?? "🛒";
+  return categoryEmojis[key] ?? "🛍️";
 }
 
 export function normalizeProduct(
@@ -350,7 +411,9 @@ export async function getProducts(
 export async function getProduct(
   slug: string
 ): Promise<Product | null> {
-  const normalizedSlug = decodeURIComponent(slug).trim().toLowerCase();
+  const normalizedSlug = decodeURIComponent(slug)
+    .trim()
+    .toLowerCase();
 
   // First, try the individual product endpoint.
   try {
@@ -374,12 +437,12 @@ export async function getProduct(
       ) {
         const product = normalizeProduct(candidate);
 
-        // Avoid treating an error-shaped JSON object as a product.
         if (
           product.name !== "পণ্যের নাম পাওয়া যায়নি" &&
-          (product.slug.toLowerCase() === normalizedSlug ||
-            product.id.toLowerCase() === normalizedSlug ||
-            product.slug)
+          (
+            product.slug.toLowerCase() === normalizedSlug ||
+            product.id.toLowerCase() === normalizedSlug
+          )
         ) {
           return product;
         }
@@ -438,14 +501,17 @@ export async function getCategories(): Promise<Category[]> {
       slug,
       name,
       emoji:
-        pick(category, ["emoji", "icon"], "") ||
         categoryEmojis[slug] ||
+        pick(category, ["emoji", "icon"], "") ||
         "🛍️",
     };
   });
 }
 
-export function bnNumber(value: number, digits = 0): string {
+export function bnNumber(
+  value: number,
+  digits = 0
+): string {
   return new Intl.NumberFormat("bn-BD", {
     maximumFractionDigits: digits,
     minimumFractionDigits: digits,
