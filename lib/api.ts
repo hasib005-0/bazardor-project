@@ -34,51 +34,6 @@ const BASE = (
   "https://api.abcz.workers.dev/api/bazardor"
 ).replace(/\/+$/, "");
 
-const productEmojis: Record<string, string> = {
-  "sorno-machi-chal": "🍚",
-  "miniket-chal": "🍚",
-  "nazir-chal": "🍚",
-  "batash-sweet-chal": "🍚",
-  "mosur-dal": "🫘",
-  "mug-dal": "🫘",
-  chola: "🫘",
-  peyaj: "🧅",
-  alu: "🥔",
-  rosun: "🧄",
-  ada: "🫚",
-  morich: "🌶️",
-  "kacha-morich": "🌶️",
-  begun: "🍆",
-  dherosh: "🥒",
-  tomato: "🍅",
-  dim: "🥚",
-  mach: "🐟",
-  ilish: "🐟",
-  "ilish-mach": "🐟",
-  "katla-mach": "🐟",
-  "koi-mach": "🐟",
-  "rui-mach": "🐟",
-  "chingri-mach": "🦐",
-  "telapia": "🐟",
-  "tilapia": "🐟",
-  mangsho: "🍗",
-  murgi: "🍗",
-  tel: "🫙",
-  chal: "🍚",
-  dal: "🫘",
-  sobji: "🥬",
-  mosla: "🌶️",
-  dudh: "🥛",
-  "dudh-packet": "🥛",
-  milk: "🥛",
-  doi: "🥣",
-  doi-misti: "🥣",
-  yogurt: "🥣",
-  "dim-dudh": "🥛",
-  mayon: "🥫",
-  mayonnaise: "🥫",
-};
-
 const categoryEmojis: Record<string, string> = {
   chal: "🍚",
   rice: "🍚",
@@ -93,13 +48,13 @@ const categoryEmojis: Record<string, string> = {
   meat: "🍗",
   dim: "🥚",
   egg: "🥚",
-  "dim-dudh": "🥛",
   mosla: "🌶️",
   spice: "🌶️",
+  dairy: "🥛",
 };
 
 function pick(
-  obj: Record<string, any> | null | undefined,
+  obj: any,
   keys: string[],
   fallback: any = undefined
 ): any {
@@ -112,7 +67,7 @@ function pick(
   return fallback;
 }
 
-function numberValue(value: unknown): number {
+function numberValue(value: any): number {
   if (typeof value === "number") {
     return Number.isFinite(value) ? value : 0;
   }
@@ -137,14 +92,23 @@ function unwrap(json: any): any {
   );
 }
 
-function getProductEmoji(
-  product: Record<string, any>,
-  category: string
-): string {
-  const slug = String(
-    pick(product, ["slug"], "")
-  ).toLowerCase();
+/**
+ * API icon/emoji always has priority.
+ * Product-name/category fallback is used only when the API has no icon.
+ */
+function getProductEmoji(product: any, category: string): string {
+  const supplied = pick(
+    product,
+    ["emoji", "icon", "imageEmoji", "image_emoji"],
+    ""
+  );
 
+  if (typeof supplied === "string" && supplied.trim()) {
+    return supplied.trim();
+  }
+
+  // If API returns an image URL instead of an emoji, preserve that value.
+  // The current Product type expects emoji text, so only strings are returned.
   const name = String(
     pick(
       product,
@@ -153,24 +117,13 @@ function getProductEmoji(
     )
   ).toLowerCase();
 
-  // Match the actual product before using a generic API icon.
-  if (productEmojis[slug]) {
-    return productEmojis[slug];
-  }
-
-  // More specific names must come before general names.
+  // Fallbacks only for products whose API data has no icon.
   if (/চিংড়ি|চিংড়ি|shrimp|prawn/.test(name)) return "🦐";
-
   if (/দুধ|milk/.test(name)) return "🥛";
   if (/দই|doi|yogurt|yoghurt/.test(name)) return "🥣";
   if (/মাখন|butter/.test(name)) return "🧈";
   if (/পনির|cheese/.test(name)) return "🧀";
-  if (/মেয়োনিজ|মেয়োনিজ|mayonnaise|mayo/.test(name)) {
-    return "🥫";
-  }
-
   if (/ডিম|egg/.test(name)) return "🥚";
-
   if (/চাল|rice/.test(name)) return "🍚";
   if (/ডাল|ছোলা|lentil|chickpea/.test(name)) return "🫘";
   if (/পেঁয়াজ|পেঁয়াজ|পিয়াজ|onion/.test(name)) return "🧅";
@@ -181,39 +134,15 @@ function getProductEmoji(
   if (/বেগুন|eggplant/.test(name)) return "🍆";
   if (/ঢেঁড়স|ঢেঁড়স|okra/.test(name)) return "🥒";
   if (/টমেটো|tomato/.test(name)) return "🍅";
-  if (/শসা|cucumber/.test(name)) return "🥒";
-  if (/গাজর|carrot/.test(name)) return "🥕";
-  if (/বাঁধাকপি|বাধাকপি|cabbage/.test(name)) return "🥬";
-  if (/ফুলকপি|cauliflower/.test(name)) return "🥦";
-  if (/লাউ|কুমড়া|কুমড়া|pumpkin/.test(name)) return "🎃";
-
-  if (/মাছ|ইলিশ|কাতলা|কাতল|রুই|তেলাপিয়া|তেলাপিয়া|fish/.test(name)) {
-    return "🐟";
-  }
-
+  if (/মাছ|ইলিশ|কাতলা|কই|রুই|fish/.test(name)) return "🐟";
   if (/মুরগি|chicken/.test(name)) return "🍗";
-  if (/গরুর মাংস|খাসির মাংস|beef|mutton/.test(name)) {
-    return "🥩";
-  }
+  if (/গরুর মাংস|খাসির মাংস|beef|mutton/.test(name)) return "🥩";
   if (/মাংস|meat/.test(name)) return "🍖";
-
   if (/তেল|oil/.test(name)) return "🫙";
   if (/চিনি|sugar/.test(name)) return "🍬";
-  if (/লবণ|salt/.test(name)) return "🧂";
-  if (/হলুদ|turmeric/.test(name)) return "🫚";
-
-  const supplied = pick(product, ["emoji", "icon"], "");
-
-  if (
-    typeof supplied === "string" &&
-    supplied.trim() &&
-    !["🛒", "🛍️", "📦", "❓"].includes(supplied.trim())
-  ) {
-    return supplied;
-  }
+  if (/লবণ|লবন|salt/.test(name)) return "🧂";
 
   const key = category.toLowerCase().replace(/[-_\s]/g, "");
-
   return categoryEmojis[key] ?? "🛍️";
 }
 
@@ -364,22 +293,10 @@ export function normalizeProduct(
 }
 
 function extractProductList(data: any): any[] {
-  if (Array.isArray(data)) {
-    return data;
-  }
-
-  if (Array.isArray(data?.items)) {
-    return data.items;
-  }
-
-  if (Array.isArray(data?.products)) {
-    return data.products;
-  }
-
-  if (Array.isArray(data?.data)) {
-    return data.data;
-  }
-
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.items)) return data.items;
+  if (Array.isArray(data?.products)) return data.products;
+  if (Array.isArray(data?.data)) return data.data;
   return [];
 }
 
@@ -415,7 +332,6 @@ export async function getProduct(
     .trim()
     .toLowerCase();
 
-  // First, try the individual product endpoint.
   try {
     const response = await fetch(
       `${BASE}/products/${encodeURIComponent(normalizedSlug)}`,
@@ -449,27 +365,22 @@ export async function getProduct(
       }
     }
   } catch {
-    // Try the complete product list below.
+    // Fall back to the complete product list.
   }
 
-  // Fallback: find the product in the list endpoint.
   try {
     const products = await getProducts();
 
-    const match = products.find(
-      (product) =>
-        product.slug.toLowerCase() === normalizedSlug ||
-        product.id.toLowerCase() === normalizedSlug
+    return (
+      products.find(
+        (product) =>
+          product.slug.toLowerCase() === normalizedSlug ||
+          product.id.toLowerCase() === normalizedSlug
+      ) ?? null
     );
-
-    if (match) {
-      return match;
-    }
   } catch {
-    // Both API requests failed.
+    return null;
   }
-
-  return null;
 }
 
 export async function getCategories(): Promise<Category[]> {
@@ -497,13 +408,15 @@ export async function getCategories(): Promise<Category[]> {
       )
     );
 
+    const apiIcon = pick(category, ["emoji", "icon"], "");
+
     return {
       slug,
       name,
       emoji:
-        categoryEmojis[slug] ||
-        pick(category, ["emoji", "icon"], "") ||
-        "🛍️",
+        typeof apiIcon === "string" && apiIcon.trim()
+          ? apiIcon.trim()
+          : categoryEmojis[slug] ?? "🛍️",
     };
   });
 }
