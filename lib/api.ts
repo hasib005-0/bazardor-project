@@ -1,4 +1,3 @@
-
 export type MarketPrice = {
   name: string;
   price: number;
@@ -48,6 +47,7 @@ const categoryEmojis: Record<string, string> = {
   meat: "🍗",
   dim: "🥚",
   egg: "🥚",
+  "dim-dui": "🥚",
   mosla: "🌶️",
   spice: "🌶️",
   dairy: "🥛",
@@ -93,13 +93,14 @@ function unwrap(json: any): any {
 }
 
 /**
- * API icon/emoji always has priority.
+ * API product image/emoji gets priority.
  * Product-name/category fallback is used only when the API has no icon.
  */
 function getProductEmoji(product: any, category: string): string {
+  // FIX: The API provides product icons through the "image" field.
   const supplied = pick(
     product,
-    ["emoji", "icon", "imageEmoji", "image_emoji"],
+    ["image", "emoji", "icon", "imageEmoji", "image_emoji"],
     ""
   );
 
@@ -107,8 +108,6 @@ function getProductEmoji(product: any, category: string): string {
     return supplied.trim();
   }
 
-  // If API returns an image URL instead of an emoji, preserve that value.
-  // The current Product type expects emoji text, so only strings are returned.
   const name = String(
     pick(
       product,
@@ -296,7 +295,9 @@ function extractProductList(data: any): any[] {
   if (Array.isArray(data)) return data;
   if (Array.isArray(data?.items)) return data.items;
   if (Array.isArray(data?.products)) return data.products;
+  if (Array.isArray(data?.categories)) return data.categories;
   if (Array.isArray(data?.data)) return data.data;
+
   return [];
 }
 
@@ -408,7 +409,14 @@ export async function getCategories(): Promise<Category[]> {
       )
     );
 
-    const apiIcon = pick(category, ["emoji", "icon"], "");
+    // FIX: The API uses "categoryIcon" for category icons.
+    const apiIcon = pick(
+      category,
+      ["categoryIcon", "emoji", "icon"],
+      ""
+    );
+
+    const normalizedSlug = slug.replace(/[-_\s]/g, "");
 
     return {
       slug,
@@ -416,7 +424,9 @@ export async function getCategories(): Promise<Category[]> {
       emoji:
         typeof apiIcon === "string" && apiIcon.trim()
           ? apiIcon.trim()
-          : categoryEmojis[slug] ?? "🛍️",
+          : categoryEmojis[normalizedSlug] ??
+            categoryEmojis[slug] ??
+            "🛍️",
     };
   });
 }
