@@ -11,8 +11,8 @@ export const auth = betterAuth({
 
   trustedOrigins: [
     "http://localhost:3000",
-    "https://bazardor-project.netlify.app",
-  ],
+    process.env.NEXT_PUBLIC_APP_URL,
+  ].filter((origin): origin is string => Boolean(origin)),
 
   secret: process.env.BETTER_AUTH_SECRET,
 
