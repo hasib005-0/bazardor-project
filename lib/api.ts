@@ -41,27 +41,27 @@ const productEmojis: Record<string, string> = {
   "batash-sweet-chal": "🍚",
   "mosur-dal": "🫘",
   "mug-dal": "🫘",
-  "chola": "🫘",
-  "peyaj": "🧅",
-  "alu": "🥔",
-  "rosun": "🧄",
-  "ada": "🫚",
-  "morich": "🌶️",
+  chola: "🫘",
+  peyaj: "🧅",
+  alu: "🥔",
+  rosun: "🧄",
+  ada: "🫚",
+  morich: "🌶️",
   "kacha-morich": "🌶️",
-  "begun": "🍆",
-  "dherosh": "🥒",
-  "tomato": "🍅",
-  "dim": "🥚",
-  "mach": "🐟",
-  "ilish": "🐟",
+  begun: "🍆",
+  dherosh: "🥒",
+  tomato: "🍅",
+  dim: "🥚",
+  mach: "🐟",
+  ilish: "🐟",
   "katla-mach": "🐟",
-  "mangsho": "🍗",
-  "murgi": "🍗",
-  "tel": "🫙",
-  "chal": "🍚",
-  "dal": "🫘",
-  "sobji": "🥬",
-  "mosla": "🌶️",
+  mangsho: "🍗",
+  murgi: "🍗",
+  tel: "🫙",
+  chal: "🍚",
+  dal: "🫘",
+  sobji: "🥬",
+  mosla: "🌶️",
 };
 
 const categoryEmojis: Record<string, string> = {
@@ -129,19 +129,13 @@ function getProductEmoji(product: any, category: string): string {
     return supplied;
   }
 
-  const slug = String(
-    pick(product, ["slug"], "")
-  ).toLowerCase();
-
-  const name = String(
-    pick(product, ["nameBn", "name", "title"], "")
-  );
+  const slug = String(pick(product, ["slug"], "")).toLowerCase();
+  const name = String(pick(product, ["nameBn", "name", "title"], ""));
 
   if (productEmojis[slug]) {
     return productEmojis[slug];
   }
 
-  // Match product name when the API slug differs.
   if (/চাল/.test(name)) return "🍚";
   if (/ডাল|ছোলা/.test(name)) return "🫘";
   if (/পেঁয়াজ|পেঁয়াজ/.test(name)) return "🧅";
@@ -213,7 +207,6 @@ export function normalizeProduct(
   );
 
   const changeData = product?.change;
-
   let changePercent: number;
 
   if (changeData && typeof changeData === "object") {
@@ -309,6 +302,26 @@ export function normalizeProduct(
   };
 }
 
+function extractProductList(data: any): any[] {
+  if (Array.isArray(data)) {
+    return data;
+  }
+
+  if (Array.isArray(data?.items)) {
+    return data.items;
+  }
+
+  if (Array.isArray(data?.products)) {
+    return data.products;
+  }
+
+  if (Array.isArray(data?.data)) {
+    return data.data;
+  }
+
+  return [];
+}
+
 export async function getProducts(
   category?: string
 ): Promise<Product[]> {
@@ -327,15 +340,7 @@ export async function getProducts(
   }
 
   const json = await response.json();
-  const data = unwrap(json);
-
-  const list = Array.isArray(data)
-    ? data
-    : Array.isArray(data?.items)
-      ? data.items
-      : Array.isArray(data?.products)
-        ? data.products
-        : [];
+  const list = extractProductList(unwrap(json));
 
   return list.map((product: any, index: number) =>
     normalizeProduct(product, index)
@@ -345,31 +350,63 @@ export async function getProducts(
 export async function getProduct(
   slug: string
 ): Promise<Product | null> {
-  const response = await fetch(
-    `${BASE}/products/${encodeURIComponent(slug)}`,
-    { next: { revalidate: 300 } }
-  );
+  const normalizedSlug = decodeURIComponent(slug).trim().toLowerCase();
 
-  if (!response.ok) {
-    return null;
+  // First, try the individual product endpoint.
+  try {
+    const response = await fetch(
+      `${BASE}/products/${encodeURIComponent(normalizedSlug)}`,
+      { next: { revalidate: 300 } }
+    );
+
+    if (response.ok) {
+      const json = await response.json();
+      const data = unwrap(json);
+
+      const candidate = Array.isArray(data)
+        ? data[0]
+        : data?.product ?? data?.item ?? data;
+
+      if (
+        candidate &&
+        typeof candidate === "object" &&
+        !Array.isArray(candidate)
+      ) {
+        const product = normalizeProduct(candidate);
+
+        // Avoid treating an error-shaped JSON object as a product.
+        if (
+          product.name !== "পণ্যের নাম পাওয়া যায়নি" &&
+          (product.slug.toLowerCase() === normalizedSlug ||
+            product.id.toLowerCase() === normalizedSlug ||
+            product.slug)
+        ) {
+          return product;
+        }
+      }
+    }
+  } catch {
+    // Try the complete product list below.
   }
 
-  const json = await response.json();
-  const data = unwrap(json);
+  // Fallback: find the product in the list endpoint.
+  try {
+    const products = await getProducts();
 
-  const product = Array.isArray(data)
-    ? data[0]
-    : data?.product ?? data?.item ?? data;
+    const match = products.find(
+      (product) =>
+        product.slug.toLowerCase() === normalizedSlug ||
+        product.id.toLowerCase() === normalizedSlug
+    );
 
-  if (
-    !product ||
-    typeof product !== "object" ||
-    Array.isArray(product)
-  ) {
-    return null;
+    if (match) {
+      return match;
+    }
+  } catch {
+    // Both API requests failed.
   }
 
-  return normalizeProduct(product);
+  return null;
 }
 
 export async function getCategories(): Promise<Category[]> {
@@ -382,13 +419,7 @@ export async function getCategories(): Promise<Category[]> {
   }
 
   const json = await response.json();
-  const data = unwrap(json);
-
-  const list = Array.isArray(data)
-    ? data
-    : Array.isArray(data?.items)
-      ? data.items
-      : [];
+  const list = extractProductList(unwrap(json));
 
   return list.map((category: any) => {
     const slug = String(
